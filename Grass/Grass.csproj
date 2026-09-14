@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<RootNamespace>TrafficLight</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="NLog" Version="6.2.0"/>
+		<PackageReference Include="SimpleRpc" Version="1.0.0-beta1"/>
+		<PackageReference Include="SimpleRpc.Serialization.Hyperion" Version="1.0.0-beta1"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\GrassContract\GrassContract.csproj" />
+	</ItemGroup>
+</Project>
