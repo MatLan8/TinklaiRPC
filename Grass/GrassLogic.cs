@@ -31,6 +31,41 @@ public class TrafficLightState
 	public List<int> CarQueue = new List<int>();
 }
 
+class GrassPatch
+{
+	public List<BugState> Bugs = [];
+	public BirdState? Bird;
+}
+
+class BugState
+{
+	public int Id;
+	
+	public int Size;
+}
+
+class BirdState
+{
+	public int Id;
+	
+	public int Size;
+}
+
+class MeadowState
+{
+	public readonly object AccessLock = new();
+	
+	public int LastUniqueId;
+	
+	public GrassPatch[] Patches = [];
+
+	public Dictionary<int, int> BugPlace = new();
+
+	public Dictionary<int, int> BirdPlace = new();
+}
+
+
+
 
 /// <summary>
 /// <para>Traffic light logic.</para>
@@ -53,15 +88,27 @@ class GrassLogic
 	/// </summary>
 	private TrafficLightState mState = new TrafficLightState();
 	
+	private MeadowState mMeadow = new MeadowState();
 
+
+	private const int PlacesCount = 250;
+	
 	/// <summary>
 	/// Constructor.
 	/// </summary>
 	public GrassLogic()
 	{
+		
+		mMeadow.Patches = new GrassPatch[PlacesCount];
+		for (int i = 0; i < PlacesCount; i++)
+		{
+			mMeadow.Patches[i] = new GrassPatch();
+		}
+		
 		//start the background task
 		mBgTaskThread = new Thread(BackgroundTask);
 		mBgTaskThread.Start();
+		
 	}
 
 	/// <summary>

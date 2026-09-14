@@ -1,0 +1,19 @@
+﻿# Build
+bin/
+obj/
+
+# NuGet
+*.nupkg
+**/packages/*
+
+# User / IDE
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+.vs/
+.idea/
+*.iml
+
+.directory

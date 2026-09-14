@@ -1,5 +1,0 @@
-C:\Matas\Univeras\4 kursas\Tinklai\Lesykla\Bird\obj\Debug\net10.0\Bird.csproj.AssemblyReference.cache
-C:\Matas\Univeras\4 kursas\Tinklai\Lesykla\Bird\obj\Debug\net10.0\Bird.GeneratedMSBuildEditorConfig.editorconfig
-C:\Matas\Univeras\4 kursas\Tinklai\Lesykla\Bird\obj\Debug\net10.0\Bird.AssemblyInfoInputs.cache
-C:\Matas\Univeras\4 kursas\Tinklai\Lesykla\Bird\obj\Debug\net10.0\Bird.AssemblyInfo.cs
-C:\Matas\Univeras\4 kursas\Tinklai\Lesykla\Bird\obj\Debug\net10.0\Bird.csproj.CoreCompileInputs.cache
