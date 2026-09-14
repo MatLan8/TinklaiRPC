@@ -2,24 +2,35 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "TrafficLight",
+            "name": "Grass",
             "type": "coreclr",
-            "request": "launch",           
-            "preLaunchTask": "build-TrafficLight",
-            "program": "${workspaceFolder}/TrafficLight/bin/Debug/net10.0/TrafficLight.dll",
+            "request": "launch",
+            "preLaunchTask": "build-Grass",
+            "program": "${workspaceFolder}/Grass/bin/Debug/net10.0/Grass.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/TrafficLight",
+            "cwd": "${workspaceFolder}/Grass",
             "console": "externalTerminal",
             "stopAtEntry": false
         },
         {
-            "name": "Car",
+            "name": "Bug",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build-Car",
-            "program": "${workspaceFolder}/Car/bin/Debug/net10.0/Car.dll",
+            "preLaunchTask": "build-Bug",
+            "program": "${workspaceFolder}/Bug/bin/Debug/net10.0/Bug.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Car",
+            "cwd": "${workspaceFolder}/Bug",
+            "console": "externalTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Bird",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-Bird",
+            "program": "${workspaceFolder}/Bird/bin/Debug/net10.0/Bird.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Bird",
             "console": "externalTerminal",
             "stopAtEntry": false
         }

@@ -2,24 +2,36 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build-TrafficLight",
+            "label": "build-Grass",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/TrafficLight/TrafficLight.csproj",
+                "${workspaceFolder}/Grass/Grass.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-Car",
+            "label": "build-Bug",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/Car/Car.csproj",
+                "${workspaceFolder}/Bug/Bug.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-Bird",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Bird/Bird.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
