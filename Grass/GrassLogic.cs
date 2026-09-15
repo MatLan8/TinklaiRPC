@@ -5,32 +5,6 @@ using NLog;
 
 using Services;
 
-/// <summary>
-/// Traffic light state descritor.
-/// </summary>
-public class TrafficLightState
-{
-	/// <summary>
-	/// Access lock.
-	/// </summary>
-	public readonly object AccessLock = new object();
-
-	/// <summary>
-	/// Last unique ID value generated.
-	/// </summary>
-	public int LastUniqueId;
-
-	/// <summary>
-	/// Light state.
-	/// </summary>
-	public LightState LightState;
-
-	/// <summary>
-	/// Bug queue.
-	/// </summary>
-	public List<int> CarQueue = new List<int>();
-}
-
 class GrassPatch
 {
 	public List<BugState> Bugs = [];
@@ -55,7 +29,9 @@ class MeadowState
 {
 	public readonly object AccessLock = new();
 	
-	public int LastUniqueId;
+	public int LastUniqueBugId;
+	
+	public int LastUniqueBirdId;
 	
 	public GrassPatch[] Patches = [];
 
@@ -82,16 +58,13 @@ class GrassLogic
 	/// Background task thread.
 	/// </summary>
 	private Thread mBgTaskThread;
-
-	/// <summary>
-	/// State descriptor.
-	/// </summary>
-	private TrafficLightState mState = new TrafficLightState();
 	
 	private MeadowState mMeadow = new MeadowState();
 
 
 	private const int PlacesCount = 250;
+
+	private const int MaxGrowSize = 100;
 	
 	/// <summary>
 	/// Constructor.
@@ -106,8 +79,8 @@ class GrassLogic
 		}
 		
 		//start the background task
-		mBgTaskThread = new Thread(BackgroundTask);
-		mBgTaskThread.Start();
+		// mBgTaskThread = new Thread(BackgroundTask);
+		// mBgTaskThread.Start();
 		
 	}
 
@@ -115,188 +88,149 @@ class GrassLogic
 	/// Get next unique ID from the server. Is used by cars to acquire client ID's.
 	/// </summary>
 	/// <returns>Unique ID.</returns>
-	public int GetUniqueId() 
+	public int GetUniqueBugId() 
 	{
-		lock( mState.AccessLock )
+		lock( mMeadow.AccessLock )
 		{
-			mState.LastUniqueId += 1;
-			return mState.LastUniqueId;
+			mMeadow.LastUniqueBugId += 1;
+			return mMeadow.LastUniqueBugId;
+		}
+	}
+	
+	public int GetUniqueBirdId() 
+	{
+		lock( mMeadow.AccessLock )
+		{
+			mMeadow.LastUniqueBirdId += 1;
+			return mMeadow.LastUniqueBirdId;
 		}
 	}
 
-	/// <summary>
-	/// Get current light state.
-	/// </summary>
-	/// <returns>Current light state.</returns>				
-	public LightState GetLightState() 
+
+	public int[] GetMeadow()
 	{
-		lock( mState.AccessLock )
+		lock (mMeadow.AccessLock)
 		{
-			return mState.LightState;
+			var counts = new int[PlacesCount];
+			for (int i = 0; i < PlacesCount; i++)
+			{
+				counts[i] = mMeadow.Patches[i].Bugs.Count;
+			}
+			return counts;
 		}
 	}
-
-	/// <summary>
-	/// Queue give car at the light. Will only succeed if light is red.
-	/// </summary>
-	/// <param name="car">Bug to queue.</param>
-	/// <returns>True on success, false on failure.</returns>
-	public bool Queue(CarDesc car)
+	
+	public MoveAttemptDesc SpawnBug(BugDesc bug)
 	{
-		lock( mState.AccessLock )
+		lock (mMeadow.AccessLock)
 		{
-			mLog.Info($"Bug {car.CarId}, RegNr. {car.CarNumber}, Driver {car.DriverNameSurname}, is trying to queue \uD83E\uDD14.");
-
-			//light not red? do not allow to queue
-			if( mState.LightState != LightState.Red )
+			int bugId = bug.BugId;
+			
+			if (mMeadow.BugPlace.ContainsKey(bugId))
 			{
-				mLog.Info("Queuing denied \u274C, because light is not red.");
-				return false;
-			}
-
-			//already in queue? deny
-			if( mState.CarQueue.Exists(it => it == car.CarId) )
-			{
-				mLog.Info("Queuing denied \u274C, because car is already in queue.");
-				return false;
-			}
-
-			//queue
-			mState.CarQueue.Add(car.CarId);
-			mLog.Info("Queuing allowed \u2713.");
-
-			//
-			return true;
-		}
-	}
-
-	/// <summary>
-	/// Tell if car is first in line in queue.
-	/// </summary>
-	/// <param name="carId">ID of the car to check for.</param>
-	/// <returns>True if car is first in line. False if not first in line or not in queue.</returns>
-	public bool IsFirstInLine(int carId)
-	{
-		lock( mState.AccessLock )
-		{
-			//no queue entries? return false
-			if( mState.CarQueue.Count == 0 )
-				return false;
-
-			//check if first in line
-			return (mState.CarQueue[0] == carId);
-		}
-	}
-
-	/// <summary>
-	/// Try passing the traffic light. If car is in queue, it will be removed from it.
-	/// </summary>
-	/// <param name="car">Bug descriptor.</param>
-	/// <returns>Pass result descriptor.</returns>
-	public PassAttemptResult Pass(CarDesc car)
-	{
-		//prepare result descriptor
-		var par = new PassAttemptResult();
-
-		lock( mState.AccessLock )
-		{
-			mLog.Info($"Bug {car.CarId}, RegNr. {car.CarNumber}, Driver {car.DriverNameSurname}, is trying to pass \uD83E\uDD14.");
-
-			//light is red? do not allow to pass
-			if( mState.LightState == LightState.Red )
-			{
-				//indicate car crashed
-				par.IsSuccess = false;
-				
-				//set crash reason
-				if( mState.CarQueue.Exists(it => it == car.CarId) )
+				return new MoveAttemptDesc
 				{
-					if( mState.CarQueue[0] == car.CarId )
-						par.CrashReason = "tried to run a red light \uD83D\uDE98 \uD83D\uDCA5 \uD83D\uDE97";
-					else
-						par.CrashReason = "hit a car in front of it \uD83D\uDE97 \uD83D\uDCA5 \uD83D\uDE97";
-					
-					//remove car from queue
-					mState.CarQueue = mState.CarQueue.Where(it => it != car.CarId).ToList();
-				}
-				else
-				{
-					par.CrashReason = "tried to run a red light \uD83D\uDE98 \uD83D\uDCA5 \uD83D\uDE97";
-				}
-			}
-			//light is green, allow to pass if not in queue or first in queue
-			else
-			{
-				//car in queue?
-				if( mState.CarQueue.Exists(it => it == car.CarId) )
-				{
-					//first in queue? allow to pass
-					if( mState.CarQueue[0] == car.CarId )
-					{
-						par.IsSuccess = true;						
-					}
-					//not first in queue, crash
-					else
-					{
-						par.IsSuccess = false;
-						par.CrashReason = "hit a car in front of it \uD83D\uDE97 \uD83D\uDCA5 \uD83D\uDE97";
-					}
-
-					//remove car from queue
-					mState.CarQueue = mState.CarQueue.Where(it => it != car.CarId).ToList();
-				}
-				//car not in queue
-				{
-					par.IsSuccess = true;
-				}
-			}
-
-			//log result
-			if( par.IsSuccess )
-			{
-				mLog.Info("Bug has passed. \uD83D\uDE97 \u25C2\u25C2");
-			}
-			else
-			{
-				mLog.Info($"Bug has crashed because '{par.CrashReason}'.");
-			}
-
-			//
-			return par;
-		}
-	}
-
-	/// <summary>
-	/// Background task for the traffic light.
-	/// </summary>
-	public void BackgroundTask()
-	{
-		//initialize random number generator
-		var rnd = new Random();
-
-		//
-		while( true )
-		{
-			//sleep a while
-			Thread.Sleep(500 + rnd.Next(1500));
-
-			//switch the light
-			lock( mState.AccessLock )
-			{
-				mState.LightState = 
-					mState.LightState == LightState.Red 
-					? LightState.Green 
-					: LightState.Red;
-
-				var colorCode = mState.LightState switch
-				{
-					LightState.Red => "\e[31m",
-					LightState.Green => "\e[32m"
+					IsSuccess = false,
+					Reason = "Bug already joined",
+					MovedTo = mMeadow.BugPlace[bugId],
 				};
-				var endColor = "\e[0m";
-
-				mLog.Info($"New light state is '{colorCode}{mState.LightState}{endColor}'.");
 			}
+			
+			int place = Random.Shared.Next(PlacesCount);
+			
+			var bugState = new BugState { Id = bugId, Size = 0 };
+			
+			mMeadow.Patches[place].Bugs.Add(bugState);
+			
+			mMeadow.BugPlace[bugId] = place;
+			
+			mLog.Info($"Bug {bugId} joined on patch {place}.");
+
+			return new MoveAttemptDesc
+			{
+				IsSuccess = true,
+				MovedTo = place,
+				NewMass = 1,
+			};
 		}
 	}
+	
+
+
+	public MoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
+	{
+		lock (mMeadow.AccessLock)
+		{
+			int bugId = bug.BugId;
+			if (!mMeadow.BugPlace.TryGetValue(bugId, out int oldPlace))
+			{
+				return new MoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Bug isn't in grass field yet.",
+					MovedTo = -1,
+					NewMass = 1,
+				};
+			}
+			
+			var oldPatch = mMeadow.Patches[oldPlace];
+			
+			// 2. Find the actual BugState in the old patch list
+			var bugState = oldPatch.Bugs.First(b => b.Id == bugId);
+			
+			// 3. Remove from old patch
+			oldPatch.Bugs.Remove(bugState);
+			
+			// 4. Add to new patch (same object, not a new BugState)
+			mMeadow.Patches[targetPatch].Bugs.Add(bugState);
+			
+			// 5. Update dictionary
+			mMeadow.BugPlace[bugId] = targetPatch;
+			
+			// 6. Grow size
+			bugState.Size += Random.Shared.Next(0, MaxGrowSize);
+			
+			mLog.Info($"Bug {bugId} moved to {targetPatch}.");
+			return new MoveAttemptDesc
+			{
+				MovedTo = targetPatch,
+				NewMass = bugState.Size
+			};
+		}
+	}
+	
+
+	// /// <summary>
+	// /// Background task for the traffic light.
+	// /// </summary>
+	// public void BackgroundTask()
+	// {
+	// 	//initialize random number generator
+	// 	var rnd = new Random();
+	//
+	// 	//
+	// 	while( true )
+	// 	{
+	// 		//sleep a while
+	// 		Thread.Sleep(500 + rnd.Next(1500));
+	//
+	// 		//switch the light
+	// 		lock( mState.AccessLock )
+	// 		{
+	// 			mState.LightState = 
+	// 				mState.LightState == LightState.Red 
+	// 				? LightState.Green 
+	// 				: LightState.Red;
+	//
+	// 			var colorCode = mState.LightState switch
+	// 			{
+	// 				LightState.Red => "\e[31m",
+	// 				LightState.Green => "\e[32m"
+	// 			};
+	// 			var endColor = "\e[0m";
+	//
+	// 			mLog.Info($"New light state is '{colorCode}{mState.LightState}{endColor}'.");
+	// 		}
+	// 	}
+	// }
 }

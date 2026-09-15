@@ -9,53 +9,40 @@ public class GrassService : IGrassService
 {
 	//NOTE: instance-per-request service would need logic to be static or injected from a singleton instance
 	private readonly GrassLogic mLogic = new GrassLogic();
-
-
+	
 	/// <summary>
 	/// Get next unique ID from the server. Is used by cars to acquire client ID's.
 	/// </summary>
 	/// <returns>Unique ID.</returns>
-	public int GetUniqueId() 
+	public int GetUniqueBugId() 
 	{
-		return mLogic.GetUniqueId();
+		return mLogic.GetUniqueBugId();
 	}
 
-	/// <summary>
-	/// Get current light state.
-	/// </summary>
-	/// <returns>Current light state.</returns>				
-	public LightState GetLightState()
+	public int GetUniqueBirdId()
 	{
-		return mLogic.GetLightState();
+		return mLogic.GetUniqueBirdId();
 	}
 
-	/// <summary>
-	/// Queue give car at the light. Will only succeed if light is red.
-	/// </summary>
-	/// <param name="car">Bug to queue.</param>
-	/// <returns>True on success, false on failure.</returns>
-	public bool Queue(CarDesc car) 
+	public int[] GetMeadow()
 	{
-		return mLogic.Queue(car);
+		return mLogic.GetMeadow();
 	}
 
-	/// <summary>
-	/// Tell if car is first in line in queue.
-	/// </summary>
-	/// <param name="carId">ID of the car to check for.</param>
-	/// <returns>True if car is first in line. False if not first in line or not in queue.</returns>
-	public bool IsFirstInLine(int carId)
-	{
-		return mLogic.IsFirstInLine(carId);
-	}
 
-	/// <summary>
-	/// Try passing the traffic light. If car is in queue, it will be removed from it.
-	/// </summary>
-	/// <param name="car">Bug descriptor.</param>
-	/// <returns>Pass result descriptor.</returns>
-	public PassAttemptResult Pass(CarDesc car)
+	public MoveAttemptDesc SpawnBug(BugDesc bug)
 	{
-		return mLogic.Pass(car);
+		return mLogic.SpawnBug(bug);
+	}
+	
+	// public MoveAttemptDesc SpawnBird(BirdDesc bird)
+	// {
+	// 	return mLogic.SpawnBird(bird);
+	// }
+	
+
+	public MoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
+	{
+		return mLogic.MoveBug(bug, targetPatch);
 	}
 }
