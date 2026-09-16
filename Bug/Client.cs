@@ -79,13 +79,13 @@ class Client
 					BugId = grass.GetUniqueBugId()
 				};
 
-				MoveAttemptDesc joinAttempt = grass.SpawnBug(bug);
+				var joinAttempt = grass.SpawnBug(bug);
 
 				//log identity data
 				mLog.Info($"I am bug {bug.BugId}, I have spawned at {joinAttempt.MovedTo} with mass {joinAttempt.NewMass}");
 				
 				Console.Title =
-					$"I am bug {bug.BugId}, I have spawned at {joinAttempt.MovedTo} with mass {joinAttempt.NewMass}";
+					$"I am bug {bug.BugId}";
 					
 				//do the bug stuff
 				while (true)
@@ -95,10 +95,10 @@ class Client
 					//and we see a traffic light
 					mLog.Info("I am looking for new grass patch to go to.");
 
-					int[] meadow = grass.GetMeadow();
-					int nextSpot = GetNextSpot(meadow, rng);
+					var meadow = grass.GetMeadow();
+					var nextSpot = GetNextSpot(meadow, rng);
 
-					MoveAttemptDesc moveAttempt = grass.MoveBug(bug, nextSpot);
+					var moveAttempt = grass.MoveBug(bug, nextSpot);
 					mLog.Info($"I have moved to patch {moveAttempt.MovedTo}, my new mass: {moveAttempt.NewMass}.");
 				}
 
@@ -115,24 +115,24 @@ class Client
 	}
 
 
-	private int GetNextSpot(int[] meadow, Random rng)
+	private int GetNextSpot(MeadowSnapshot meadow, Random rng)
 	{
 		// weight[i] = 1 + bugs on patch i  (empty still has a chance)
-		int totalWeight = 0;
+		var totalWeight = 0;
 
-		for (int i = 0; i < meadow.Length; i++)
+		for (int i = 0; i < meadow.BugCounts.Length; i++)
 		{
-			totalWeight += 1 + meadow[i];
+			totalWeight += 1 + meadow.BugCounts[i];
 		}
 		
-		int roll = rng.Next(totalWeight); // 0 .. totalWeight-1
+		var roll = rng.Next(totalWeight);
 		
-		int running = 0;
-		int targetSpot = 0;
+		var running = 0;
+		var targetSpot = 0;
 		
-		for (int i = 0; i < meadow.Length; i++)
+		for (var i = 0; i < meadow.BugCounts.Length; i++)
 		{
-			running += 1 + meadow[i];
+			running += 1 + meadow.BugCounts[i];
 			if (roll < running)
 			{
 				targetSpot = i;
@@ -140,7 +140,7 @@ class Client
 			}
 		}
 		
-		mLog.Info($"I decided to move to grass patch {targetSpot} (bugs there: {meadow[targetSpot]}, weight {1 + meadow[targetSpot]} / {totalWeight}).");
+		mLog.Info($"I decided to move to grass patch {targetSpot} (bugs there: {meadow.BugCounts[targetSpot]}, weight {1 + meadow.BugCounts[targetSpot]} / {totalWeight}).");
 		
 		return targetSpot;
 	}

@@ -24,25 +24,29 @@ public class GrassService : IGrassService
 		return mLogic.GetUniqueBirdId();
 	}
 
-	public int[] GetMeadow()
+	public MeadowSnapshot GetMeadow()
 	{
 		return mLogic.GetMeadow();
 	}
 
 
-	public MoveAttemptDesc SpawnBug(BugDesc bug)
+	public BugMoveAttemptDesc SpawnBug(BugDesc bug)
 	{
 		return mLogic.SpawnBug(bug);
 	}
 	
-	// public MoveAttemptDesc SpawnBird(BirdDesc bird)
-	// {
-	// 	return mLogic.SpawnBird(bird);
-	// }
+	public BirdMoveAttemptDesc SpawnBird(BirdDesc bird)
+	{
+		return mLogic.SpawnBird(bird);
+	}
 	
-
-	public MoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
+	public BugMoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
 	{
 		return mLogic.MoveBug(bug, targetPatch);
+	}
+	
+	public BirdMoveAttemptDesc MoveBird(BirdDesc bird, int targetPatch)
+	{
+		return mLogic.MoveBird(bird, targetPatch);
 	}
 }

@@ -62,7 +62,7 @@ class GrassLogic
 	private MeadowState mMeadow = new MeadowState();
 
 
-	private const int PlacesCount = 250;
+	private const int PlacesCount = 10;
 
 	private const int MaxGrowSize = 100;
 	
@@ -107,20 +107,27 @@ class GrassLogic
 	}
 
 
-	public int[] GetMeadow()
+	public MeadowSnapshot GetMeadow()
 	{
 		lock (mMeadow.AccessLock)
 		{
-			var counts = new int[PlacesCount];
-			for (int i = 0; i < PlacesCount; i++)
+			var bugCounts = new int[PlacesCount];
+			var birdOccupied = new bool[PlacesCount];
+			
+			for (var i = 0; i < PlacesCount; i++)
 			{
-				counts[i] = mMeadow.Patches[i].Bugs.Count;
+				bugCounts[i] = mMeadow.Patches[i].Bugs.Count;
+				birdOccupied[i] = mMeadow.Patches[i].Bird != null;
 			}
-			return counts;
+			return new MeadowSnapshot
+			{
+				BugCounts = bugCounts,
+				BirdOccupied = birdOccupied,
+			};
 		}
 	}
 	
-	public MoveAttemptDesc SpawnBug(BugDesc bug)
+	public BugMoveAttemptDesc SpawnBug(BugDesc bug)
 	{
 		lock (mMeadow.AccessLock)
 		{
@@ -128,7 +135,7 @@ class GrassLogic
 			
 			if (mMeadow.BugPlace.ContainsKey(bugId))
 			{
-				return new MoveAttemptDesc
+				return new BugMoveAttemptDesc
 				{
 					IsSuccess = false,
 					Reason = "Bug already joined",
@@ -144,9 +151,9 @@ class GrassLogic
 			
 			mMeadow.BugPlace[bugId] = place;
 			
-			mLog.Info($"Bug {bugId} joined on patch {place}.");
+			mLog.Info($"Bug {bugId} spawned on patch {place}.");
 
-			return new MoveAttemptDesc
+			return new BugMoveAttemptDesc
 			{
 				IsSuccess = true,
 				MovedTo = place,
@@ -155,16 +162,71 @@ class GrassLogic
 		}
 	}
 	
+	public BirdMoveAttemptDesc SpawnBird(BirdDesc bird)
+	{
+		lock (mMeadow.AccessLock)
+		{
+			int birdId = bird.BirdId;
+			
+			if (mMeadow.BirdPlace.ContainsKey(birdId))
+			{
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Bird already exists in the grass field.",
+					MovedTo = mMeadow.BirdPlace[birdId],
+				};
+			}
+			
+			var freeSpots = new List<int>();
+			
+			for (int i = 0; i < PlacesCount; i++)
+			{
+				if (mMeadow.Patches[i].Bird == null)
+					freeSpots.Add(i);
+			}
+			if (freeSpots.Count == 0)
+			{
+				mLog.Info($"Bird {birdId} failed to respawn because all the grass patches are taken.");
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "All grass patches are taken.",
+				};
+			}
+			int place = freeSpots[Random.Shared.Next(freeSpots.Count)];
 
 
-	public MoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
+			var birdState = new BirdState
+			{
+				Id = birdId,
+				Size = 1,
+			};
+
+			mMeadow.Patches[place].Bird = birdState;
+			
+			mMeadow.BirdPlace[birdId] = place;
+			
+			mLog.Info($"Bird {birdId} spawned on patch {place}.");
+
+			return new BirdMoveAttemptDesc
+			{
+				IsSuccess = true,
+				MovedTo = place,
+				NewMass = 1,
+			};
+		}
+	}
+
+
+	public BugMoveAttemptDesc MoveBug(BugDesc bug, int targetPatch)
 	{
 		lock (mMeadow.AccessLock)
 		{
 			int bugId = bug.BugId;
 			if (!mMeadow.BugPlace.TryGetValue(bugId, out int oldPlace))
 			{
-				return new MoveAttemptDesc
+				return new BugMoveAttemptDesc
 				{
 					IsSuccess = false,
 					Reason = "Bug isn't in grass field yet.",
@@ -191,12 +253,96 @@ class GrassLogic
 			bugState.Size += Random.Shared.Next(0, MaxGrowSize);
 			
 			mLog.Info($"Bug {bugId} moved to {targetPatch}.");
-			return new MoveAttemptDesc
+			return new BugMoveAttemptDesc
 			{
 				MovedTo = targetPatch,
 				NewMass = bugState.Size
 			};
 		}
+	}
+	
+	
+	public BirdMoveAttemptDesc MoveBird(BirdDesc bird, int targetPatch)
+	{
+		lock (mMeadow.AccessLock)
+		{
+			int birdId = bird.BirdId;
+			if (!mMeadow.BirdPlace.TryGetValue(birdId, out int oldPlace))
+			{
+				mLog.Info($"Bird {bird.BirdId} failed to move to {targetPatch}, because it wasnt in the grass field yet..");
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Bird isn't in grass field yet.",
+					MovedTo = -1,
+					NewMass = 1,
+				};
+			}
+
+			if (mMeadow.Patches[targetPatch].Bird != null)
+			{
+				mLog.Info($"Bird {bird.BirdId} failed to move to {targetPatch}, because other bird already occupied the patch.");
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = $"Another bird is already at patch {targetPatch}.",
+					MovedTo = -1,
+					NewMass = 1,
+				};
+			}
+			var birdState = mMeadow.Patches[oldPlace].Bird;
+			mMeadow.Patches[oldPlace].Bird = null;
+			
+			mMeadow.Patches[targetPatch].Bird = birdState;
+			
+			// 5. Update dictionary
+			mMeadow.BirdPlace[birdId] = targetPatch;
+			
+			var patchBugs = mMeadow.Patches[targetPatch].Bugs;
+
+			if (patchBugs.Count == 0)
+			{
+				mLog.Info($"Bird {bird.BirdId} moved to {targetPatch}, no bugs were found.");
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = true,
+					AteBug = false,
+					MovedTo = targetPatch,
+					NewMass = birdState.Size,
+				};
+			}
+
+			var largestBug = patchBugs.OrderByDescending(b => b.Size).First();
+			birdState.Size += largestBug.Size;	
+			
+			RespawnBug(largestBug);
+			
+			mLog.Info($"Bird {bird.BirdId} moved to {targetPatch} and ate bug {largestBug.Id}.");
+			
+			
+			return new BirdMoveAttemptDesc
+			{
+				IsSuccess = true,
+				AteBug = true,
+				MovedTo = targetPatch,
+				NewMass = birdState.Size,
+			};
+		}
+	}
+
+	private void RespawnBug(BugState bug)
+	{
+		int oldPlace = mMeadow.BugPlace[bug.Id];
+		mMeadow.Patches[oldPlace].Bugs.Remove(bug);
+		
+		int newPlace = Random.Shared.Next(PlacesCount);
+		
+		bug.Size = 1;
+		
+		mMeadow.Patches[newPlace].Bugs.Add(bug);
+		mMeadow.BugPlace[bug.Id] = newPlace;
+		
+		mLog.Info($"Bug {bug.Id} has been eaten and respawned at {newPlace}.");
 	}
 	
 

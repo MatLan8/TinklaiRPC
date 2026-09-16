@@ -1,5 +1,5 @@
-﻿namespace Services;
-
+﻿#nullable enable
+namespace Services;
 
 /// <summary>
 /// Bug descriptor.
@@ -26,7 +26,7 @@ public class BirdDesc
 /// <summary>
 /// Descriptor of pass atempt result
 /// </summary>
-public class MoveAttemptDesc
+public class BugMoveAttemptDesc
 {
 	public bool IsSuccess { get; set; }
 	
@@ -38,6 +38,32 @@ public class MoveAttemptDesc
 	public int NewMass { get; set; }
 	
 	public string? Reason { get; set; }
+}
+
+
+public class BirdMoveAttemptDesc
+{
+	public bool IsSuccess { get; set; }
+	
+	public bool AteBug { get; set; }
+	
+	public int? BugId { get; set; }
+	
+	public int MovedTo { get; set; }
+
+	/// <summary>
+	/// If pass attempt has failed, indicates crash reason.
+	/// </summary>
+	public int NewMass { get; set; }
+	
+	public string? Reason { get; set; }
+}
+
+
+public class MeadowSnapshot
+{
+	public int[] BugCounts;      // index = place, value = bug count
+	public bool[] BirdOccupied;  // index = place, true = a bird is sitting there
 }
 
 
@@ -55,11 +81,14 @@ public interface IGrassService
 	int GetUniqueBirdId();
 
 
-	int[] GetMeadow();
+	MeadowSnapshot GetMeadow();
 	
-	MoveAttemptDesc SpawnBug(BugDesc bug);
+	BugMoveAttemptDesc SpawnBug(BugDesc bug);
 	
-	// MoveAttemptDesc SpawnBird(BirdDesc bird);
+	BirdMoveAttemptDesc SpawnBird(BirdDesc bird);
 	
-	MoveAttemptDesc MoveBug(BugDesc bug, int targetPatch);
+	BugMoveAttemptDesc MoveBug(BugDesc bug, int targetPatch);
+	
+	BirdMoveAttemptDesc MoveBird(BirdDesc bird, int targetPatch);
+	
 }
