@@ -49,7 +49,7 @@ class Client
 		//initialize random number generator
 		var rng = new Random();
 
-		//run everythin in a loop to recover from connection errors
+		//run everything in a loop to recover from connection errors
 		while( true )
 		{
 			try {
@@ -91,8 +91,7 @@ class Client
 				while (true)
 				{
 					Thread.Sleep(500 + rng.Next(1500));
-
-					//and we see a traffic light
+					
 					mLog.Info("I am looking for new grass patch to go to.");
 
 					var meadow = grass.GetMeadow();

@@ -121,6 +121,7 @@ class Client
 							if (moveAttempt.AteBug)
 							{
 								mLog.Info($"I have moved to patch {moveAttempt.MovedTo} and ate bug {moveAttempt.BugId}, my new mass: {moveAttempt.NewMass}.");
+								break;
 							}
 							
 							mLog.Info($"I have moved to patch {moveAttempt.MovedTo} however no bugs were present, my mass: {moveAttempt.NewMass}.");

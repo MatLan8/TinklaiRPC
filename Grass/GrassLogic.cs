@@ -65,6 +65,8 @@ class GrassLogic
 	private const int PlacesCount = 10;
 
 	private const int MaxGrowSize = 100;
+
+	private Random rng = new Random();
 	
 	/// <summary>
 	/// Constructor.
@@ -79,8 +81,8 @@ class GrassLogic
 		}
 		
 		//start the background task
-		// mBgTaskThread = new Thread(BackgroundTask);
-		// mBgTaskThread.Start();
+		mBgTaskThread = new Thread(BackgroundTask);
+		mBgTaskThread.Start();
 		
 	}
 
@@ -143,7 +145,7 @@ class GrassLogic
 				};
 			}
 			
-			int place = Random.Shared.Next(PlacesCount);
+			var place = rng.Next(PlacesCount);
 			
 			var bugState = new BugState { Id = bugId, Size = 0 };
 			
@@ -194,7 +196,7 @@ class GrassLogic
 					Reason = "All grass patches are taken.",
 				};
 			}
-			int place = freeSpots[Random.Shared.Next(freeSpots.Count)];
+			int place = freeSpots[rng.Next(freeSpots.Count)];
 
 
 			var birdState = new BirdState
@@ -250,9 +252,9 @@ class GrassLogic
 			mMeadow.BugPlace[bugId] = targetPatch;
 			
 			// 6. Grow size
-			bugState.Size += Random.Shared.Next(0, MaxGrowSize);
+			bugState.Size += rng.Next(0, MaxGrowSize);
 			
-			mLog.Info($"Bug {bugId} moved to {targetPatch}.");
+			mLog.Info($"Bug {bugId} moved to {targetPatch}, new size {bugState.Size}.");
 			return new BugMoveAttemptDesc
 			{
 				MovedTo = targetPatch,
@@ -266,16 +268,14 @@ class GrassLogic
 	{
 		lock (mMeadow.AccessLock)
 		{
-			int birdId = bird.BirdId;
-			if (!mMeadow.BirdPlace.TryGetValue(birdId, out int oldPlace))
+			var birdId = bird.BirdId;
+			if (!mMeadow.BirdPlace.TryGetValue(birdId, out var oldPlace))
 			{
-				mLog.Info($"Bird {bird.BirdId} failed to move to {targetPatch}, because it wasnt in the grass field yet..");
+				mLog.Info($"Bird {bird.BirdId} failed to move to {targetPatch}, because it wasnt in the grass field yet.");
 				return new BirdMoveAttemptDesc
 				{
 					IsSuccess = false,
 					Reason = "Bird isn't in grass field yet.",
-					MovedTo = -1,
-					NewMass = 1,
 				};
 			}
 
@@ -286,8 +286,6 @@ class GrassLogic
 				{
 					IsSuccess = false,
 					Reason = $"Another bird is already at patch {targetPatch}.",
-					MovedTo = -1,
-					NewMass = 1,
 				};
 			}
 			var birdState = mMeadow.Patches[oldPlace].Bird;
@@ -317,7 +315,7 @@ class GrassLogic
 			
 			RespawnBug(largestBug);
 			
-			mLog.Info($"Bird {bird.BirdId} moved to {targetPatch} and ate bug {largestBug.Id}.");
+			mLog.Info($"Bird {bird.BirdId} moved to {targetPatch} and ate bug {largestBug.Id}, new size {birdState.Size}.");
 			
 			
 			return new BirdMoveAttemptDesc
@@ -326,16 +324,17 @@ class GrassLogic
 				AteBug = true,
 				MovedTo = targetPatch,
 				NewMass = birdState.Size,
+				BugId = largestBug.Id
 			};
 		}
 	}
 
 	private void RespawnBug(BugState bug)
 	{
-		int oldPlace = mMeadow.BugPlace[bug.Id];
+		var oldPlace = mMeadow.BugPlace[bug.Id];
 		mMeadow.Patches[oldPlace].Bugs.Remove(bug);
 		
-		int newPlace = Random.Shared.Next(PlacesCount);
+		var newPlace = rng.Next(PlacesCount);
 		
 		bug.Size = 1;
 		
@@ -345,38 +344,68 @@ class GrassLogic
 		mLog.Info($"Bug {bug.Id} has been eaten and respawned at {newPlace}.");
 	}
 	
+	private void RespawnBird(BirdState bird)
+	{
+		var oldPlace = mMeadow.BirdPlace[bird.Id];
+		mMeadow.Patches[oldPlace].Bird = null;
+		
+		var freeSpots = new List<int>();
+		for (int i = 0; i < PlacesCount; i++)
+		{
+			if (mMeadow.Patches[i].Bird == null)
+				freeSpots.Add(i);
+		}
+		
+		if (freeSpots.Count == 0)
+		{
+			mLog.Info($"Bird {bird.Id} cannot respawn — all patches occupied.");
+			return;
+		}
+		
+		var newPlace = freeSpots[rng.Next(freeSpots.Count)];
+		
+		bird.Size = 1;
+		
+		mMeadow.Patches[newPlace].Bird = bird;
+		mMeadow.BirdPlace[bird.Id] = newPlace;
+		
+		mLog.Info($"Bird {bird.Id} was shot and respawned at patch {newPlace}.");
+	}
+	
+	
+	
 
-	// /// <summary>
-	// /// Background task for the traffic light.
-	// /// </summary>
-	// public void BackgroundTask()
-	// {
-	// 	//initialize random number generator
-	// 	var rnd = new Random();
-	//
-	// 	//
-	// 	while( true )
-	// 	{
-	// 		//sleep a while
-	// 		Thread.Sleep(500 + rnd.Next(1500));
-	//
-	// 		//switch the light
-	// 		lock( mState.AccessLock )
-	// 		{
-	// 			mState.LightState = 
-	// 				mState.LightState == LightState.Red 
-	// 				? LightState.Green 
-	// 				: LightState.Red;
-	//
-	// 			var colorCode = mState.LightState switch
-	// 			{
-	// 				LightState.Red => "\e[31m",
-	// 				LightState.Green => "\e[32m"
-	// 			};
-	// 			var endColor = "\e[0m";
-	//
-	// 			mLog.Info($"New light state is '{colorCode}{mState.LightState}{endColor}'.");
-	// 		}
-	// 	}
-	// }
+	/// <summary>
+	/// Background task for the grass server.
+	/// </summary>
+	private void BackgroundTask()
+	{
+		while( true )
+		{
+			//sleep a while
+			Thread.Sleep(1000 + rng.Next(1000));
+			
+			var randomValue = rng.Next(0, 5);
+
+			if (randomValue == 0)
+			{
+				lock( mMeadow.AccessLock )
+				{
+					var biggestBird = mMeadow.Patches
+						.Select(p => p.Bird)
+						.Where(b => b != null)
+						.MaxBy(b => b!.Size);
+					
+					if (biggestBird == null)
+					{
+						mLog.Info($"Server tried to shoot biggest bird, however no birds were found.");
+					}
+					else
+					{
+						RespawnBird(biggestBird);
+					}
+				}
+			}
+		}
+	}
 }
