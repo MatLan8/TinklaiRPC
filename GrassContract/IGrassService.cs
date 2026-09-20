@@ -66,6 +66,15 @@ public class MeadowSnapshot
 	public bool[] BirdOccupied;  // index = place, true = a bird is sitting there
 }
 
+public class StatusResponse
+{
+	public bool Error;
+	
+	public bool WasKilled;
+	
+	public int NewPlace;
+}
+
 
 /// <summary>
 /// Service contract.
@@ -79,8 +88,7 @@ public interface IGrassService
 	int GetUniqueBugId();
 	
 	int GetUniqueBirdId();
-
-
+	
 	MeadowSnapshot GetMeadow();
 	
 	BugMoveAttemptDesc SpawnBug(BugDesc bug);
@@ -91,4 +99,7 @@ public interface IGrassService
 	
 	BirdMoveAttemptDesc MoveBird(BirdDesc bird, int targetPatch);
 	
+	StatusResponse GetBugStatus(BugDesc bug);
+	
+	StatusResponse GetBirdStatus(BirdDesc bird);
 }

@@ -16,6 +16,8 @@ class BugState
 	public int Id;
 	
 	public int Size;
+
+	public bool WasEaten;
 }
 
 class BirdState
@@ -23,6 +25,8 @@ class BirdState
 	public int Id;
 	
 	public int Size;
+
+	public bool WasShot;
 }
 
 class MeadowState
@@ -65,8 +69,6 @@ class GrassLogic
 	private const int PlacesCount = 10;
 
 	private const int MaxGrowSize = 100;
-
-	private Random rng = new Random();
 	
 	/// <summary>
 	/// Constructor.
@@ -140,14 +142,14 @@ class GrassLogic
 				return new BugMoveAttemptDesc
 				{
 					IsSuccess = false,
-					Reason = "Bug already joined",
+					Reason = "Bug already exists in the grass field",
 					MovedTo = mMeadow.BugPlace[bugId],
 				};
 			}
 			
-			var place = rng.Next(PlacesCount);
+			var place = Random.Shared.Next(PlacesCount);
 			
-			var bugState = new BugState { Id = bugId, Size = 0 };
+			var bugState = new BugState { Id = bugId, Size = 1 };
 			
 			mMeadow.Patches[place].Bugs.Add(bugState);
 			
@@ -179,7 +181,16 @@ class GrassLogic
 					MovedTo = mMeadow.BirdPlace[birdId],
 				};
 			}
-			
+
+			var birdsCount = mMeadow.BirdPlace.Count;
+			if (birdsCount == PlacesCount - 1)
+			{
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Grass already has maximum number of allowed birds.",
+				};
+			}
 			var freeSpots = new List<int>();
 			
 			for (int i = 0; i < PlacesCount; i++)
@@ -187,16 +198,8 @@ class GrassLogic
 				if (mMeadow.Patches[i].Bird == null)
 					freeSpots.Add(i);
 			}
-			if (freeSpots.Count == 0)
-			{
-				mLog.Info($"Bird {birdId} failed to respawn because all the grass patches are taken.");
-				return new BirdMoveAttemptDesc
-				{
-					IsSuccess = false,
-					Reason = "All grass patches are taken.",
-				};
-			}
-			int place = freeSpots[rng.Next(freeSpots.Count)];
+			
+			var place = freeSpots[Random.Shared.Next(freeSpots.Count)];
 
 
 			var birdState = new BirdState
@@ -240,7 +243,17 @@ class GrassLogic
 			var oldPatch = mMeadow.Patches[oldPlace];
 			
 			// 2. Find the actual BugState in the old patch list
-			var bugState = oldPatch.Bugs.First(b => b.Id == bugId);
+			var bugState = oldPatch.Bugs.FirstOrDefault(b => b.Id == bugId);
+			if (bugState == null)
+			{
+				return new BugMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Server couldn't find the bug.",
+					MovedTo = -1,
+					NewMass = 1,
+				};
+			}
 			
 			// 3. Remove from old patch
 			oldPatch.Bugs.Remove(bugState);
@@ -252,7 +265,7 @@ class GrassLogic
 			mMeadow.BugPlace[bugId] = targetPatch;
 			
 			// 6. Grow size
-			bugState.Size += rng.Next(0, MaxGrowSize);
+			bugState.Size += Random.Shared.Next(0, MaxGrowSize);
 			
 			mLog.Info($"Bug {bugId} moved to {targetPatch}, new size {bugState.Size}.");
 			return new BugMoveAttemptDesc
@@ -289,6 +302,16 @@ class GrassLogic
 				};
 			}
 			var birdState = mMeadow.Patches[oldPlace].Bird;
+
+			if (birdState == null)
+			{
+				return new BirdMoveAttemptDesc
+				{
+					IsSuccess = false,
+					Reason = "Server couldn't find the bird.",
+				};
+			}
+			
 			mMeadow.Patches[oldPlace].Bird = null;
 			
 			mMeadow.Patches[targetPatch].Bird = birdState;
@@ -334,9 +357,10 @@ class GrassLogic
 		var oldPlace = mMeadow.BugPlace[bug.Id];
 		mMeadow.Patches[oldPlace].Bugs.Remove(bug);
 		
-		var newPlace = rng.Next(PlacesCount);
+		var newPlace = Random.Shared.Next(PlacesCount);
 		
 		bug.Size = 1;
+		bug.WasEaten = true;
 		
 		mMeadow.Patches[newPlace].Bugs.Add(bug);
 		mMeadow.BugPlace[bug.Id] = newPlace;
@@ -362,7 +386,7 @@ class GrassLogic
 			return;
 		}
 		
-		var newPlace = freeSpots[rng.Next(freeSpots.Count)];
+		var newPlace = freeSpots[Random.Shared.Next(freeSpots.Count)];
 		
 		bird.Size = 1;
 		
@@ -371,7 +395,81 @@ class GrassLogic
 		
 		mLog.Info($"Bird {bird.Id} was shot and respawned at patch {newPlace}.");
 	}
+
+
+	public StatusResponse GetBugStatus(BugDesc bug)
+	{
+		lock (mMeadow.AccessLock)
+		{
+			var bugId = bug.BugId;
+
+			if (!mMeadow.BugPlace.TryGetValue(bugId, out var place))
+			{
+				return new StatusResponse
+				{
+					Error = true
+				};
+			}
+			
+			var bugState = mMeadow.Patches[place].Bugs.FirstOrDefault(b => b.Id == bugId);
+
+			if (bugState == null)
+			{
+				return new StatusResponse
+				{
+					Error = true
+				};
+			}
+			
+			var wasEaten = bugState.WasEaten;
+			
+			bugState.WasEaten = false;
+
+			return new StatusResponse
+			{
+				Error = false,
+				WasKilled = wasEaten,
+				NewPlace = place,
+			};
+		}
+	}
 	
+	public StatusResponse GetBirdStatus(BirdDesc bird)
+	{
+		lock (mMeadow.AccessLock)
+		{
+			var birdId = bird.BirdId;
+
+			if (!mMeadow.BirdPlace.TryGetValue(birdId, out var place))
+			{
+				return new StatusResponse
+				{
+					Error = true
+				};
+			}
+			
+			var birdState = mMeadow.Patches[place].Bird;
+
+			if (birdState == null)
+			{
+				return new StatusResponse
+				{
+					Error = true
+				};
+			}
+			
+			var wasShot = birdState.WasShot;
+			
+			birdState.WasShot = false;
+
+			return new StatusResponse
+			{
+				Error = false,
+				WasKilled = wasShot,
+				NewPlace = place,
+			};
+		}
+	}
 	
 	
 
@@ -383,9 +481,9 @@ class GrassLogic
 		while( true )
 		{
 			//sleep a while
-			Thread.Sleep(1000 + rng.Next(1000));
+			Thread.Sleep(1000 + Random.Shared.Next(1000));
 			
-			var randomValue = rng.Next(0, 5);
+			var randomValue = Random.Shared.Next(0, 5);
 
 			if (randomValue == 0)
 			{
@@ -402,6 +500,7 @@ class GrassLogic
 					}
 					else
 					{
+						biggestBird.WasShot = true;
 						RespawnBird(biggestBird);
 					}
 				}

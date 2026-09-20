@@ -86,8 +86,8 @@ class Client
 					var joinAttempt = grass.SpawnBird(bird);
 					if (!joinAttempt.IsSuccess)
 					{
-						mLog.Info($"I failed to respawn because {joinAttempt.Reason}");
-						Thread.Sleep(2000 + rng.Next(1000));
+						mLog.Info($"I failed to spawn because {joinAttempt.Reason}");
+						Thread.Sleep(4000 + rng.Next(1000));
 						continue;
 					}
 					
@@ -95,13 +95,22 @@ class Client
 					break;
 				}
 				
-					
+				
 				//do the bird stuff
 				while (true)
 				{
 					Thread.Sleep(500 + rng.Next(1500));
 
-					//and we see a traffic light
+					var status = grass.GetBirdStatus(bird);
+					if (status.Error)
+					{
+						mLog.Info("Server failed to locate the bird.");
+						continue;
+					}
+					if (status.WasKilled)
+					{
+						mLog.Info($"I was shot and have respawned at {status.NewPlace} patch.");
+					}
 					mLog.Info("I am looking for new grass patch to go to.");
 
 					var meadow = grass.GetMeadow();
@@ -152,8 +161,6 @@ class Client
 				continue;   // skip patches another bird occupies
 			totalWeight += 1 + meadow.BugCounts[i];
 		}
-		if (totalWeight == 0)
-			return -1;   // no free patches — handle in caller (skip this period)
 		
 		var roll = rng.Next(totalWeight);
 		var running = 0;

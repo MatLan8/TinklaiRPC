@@ -81,23 +81,42 @@ class Client
 
 				var joinAttempt = grass.SpawnBug(bug);
 
+				if (!joinAttempt.IsSuccess)
+				{
+					mLog.Info($"I have failed to spawn | reason: {joinAttempt.Reason}.");
+					return;
+				}
+
 				//log identity data
 				mLog.Info($"I am bug {bug.BugId}, I have spawned at {joinAttempt.MovedTo} with mass {joinAttempt.NewMass}");
 				
-				Console.Title =
-					$"I am bug {bug.BugId}";
+				Console.Title = $"I am bug {bug.BugId}";
 					
 				//do the bug stuff
 				while (true)
 				{
 					Thread.Sleep(500 + rng.Next(1500));
-					
+					var status = grass.GetBugStatus(bug);
+					if (status.Error)
+					{
+						mLog.Info("Server failed to locate the bug.");
+						continue;
+					}
+					if (status.WasKilled)
+					{
+						mLog.Info($"I was eaten and have respawned at {status.NewPlace} patch.");
+					}
 					mLog.Info("I am looking for new grass patch to go to.");
 
 					var meadow = grass.GetMeadow();
 					var nextSpot = GetNextSpot(meadow, rng);
 
 					var moveAttempt = grass.MoveBug(bug, nextSpot);
+					if (!moveAttempt.IsSuccess)
+					{
+						mLog.Info($"I have failed to move to patch {nextSpot} | reason: {moveAttempt.Reason}.");
+						continue;
+					}
 					mLog.Info($"I have moved to patch {moveAttempt.MovedTo}, my new mass: {moveAttempt.NewMass}.");
 				}
 

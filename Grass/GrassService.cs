@@ -49,4 +49,14 @@ public class GrassService : IGrassService
 	{
 		return mLogic.MoveBird(bird, targetPatch);
 	}
+
+	public StatusResponse GetBugStatus(BugDesc bug)
+	{
+		return mLogic.GetBugStatus(bug);
+	}
+	
+	public StatusResponse GetBirdStatus(BirdDesc bird)
+	{
+		return mLogic.GetBirdStatus(bird);
+	}
 }
