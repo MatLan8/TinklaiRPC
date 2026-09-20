@@ -135,6 +135,31 @@ class GrassLogic
 	private const int MaxGrowSize = 100;
 
 	/// <summary>
+	/// Console color for bug log messages.
+	/// </summary>
+	private const string Green = "\e[32m";
+
+	/// <summary>
+	/// Console color for bird log messages.
+	/// </summary>
+	private const string Blue = "\e[34m";
+
+	/// <summary>
+	/// Console color for shoot log messages.
+	/// </summary>
+	private const string Red = "\e[31m";
+
+	/// <summary>
+	/// Console color for eat log messages.
+	/// </summary>
+	private const string Yellow = "\e[33m";
+
+	/// <summary>
+	/// Reset console color.
+	/// </summary>
+	private const string Reset = "\e[0m";
+
+	/// <summary>
 	/// Constructor.
 	/// </summary>
 	public GrassLogic()
@@ -231,7 +256,7 @@ class GrassLogic
 			mMeadow.Patches[place].Bugs.Add(bugState);
 			mMeadow.BugPlace[bugId] = place;
 
-			mLog.Info($"Bug {bugId} spawned on patch {place}.");
+			mLog.Info($"{Green}Bug {bugId} spawned on patch {place}.{Reset}");
 
 			return new BugMoveAttemptDesc
 			{
@@ -294,7 +319,7 @@ class GrassLogic
 			mMeadow.Patches[place].Bird = birdState;
 			mMeadow.BirdPlace[birdId] = place;
 
-			mLog.Info($"Bird {birdId} spawned on patch {place}.");
+			mLog.Info($"{Blue}Bird {birdId} spawned on patch {place}.{Reset}");
 
 			return new BirdMoveAttemptDesc
 			{
@@ -349,7 +374,7 @@ class GrassLogic
 			//grow by a random non-negative amount
 			bugState.Size += Random.Shared.Next(0, MaxGrowSize);
 
-			mLog.Info($"Bug {bugId} moved to {targetPatch}, new size {bugState.Size}.");
+			mLog.Info($"{Green}Bug {bugId} moved to {targetPatch}, new size {bugState.Size}.{Reset}");
 			return new BugMoveAttemptDesc
 			{
 				IsSuccess = true,
@@ -410,7 +435,7 @@ class GrassLogic
 			var patchBugs = mMeadow.Patches[targetPatch].Bugs;
 			if (patchBugs.Count == 0)
 			{
-				mLog.Info($"Bird {bird.BirdId} moved to {targetPatch}, no bugs were found.");
+				mLog.Info($"{Blue}Bird {bird.BirdId} moved to {targetPatch}, no bugs were found.{Reset}");
 				return new BirdMoveAttemptDesc
 				{
 					IsSuccess = true,
@@ -425,7 +450,7 @@ class GrassLogic
 			birdState.Size += largestBug.Size;
 			RespawnBug(largestBug);
 
-			mLog.Info($"Bird {bird.BirdId} moved to {targetPatch} and ate bug {largestBug.Id}, new size {birdState.Size}.");
+			mLog.Info($"{Yellow}Bird {bird.BirdId} moved to {targetPatch} and ate bug {largestBug.Id}, new size {birdState.Size}.{Reset}");
 
 			return new BirdMoveAttemptDesc
 			{
@@ -456,7 +481,7 @@ class GrassLogic
 		mMeadow.Patches[newPlace].Bugs.Add(bug);
 		mMeadow.BugPlace[bug.Id] = newPlace;
 
-		mLog.Info($"Bug {bug.Id} has been eaten and respawned at {newPlace}.");
+		mLog.Info($"{Red}Bug {bug.Id} has been eaten and respawned at {newPlace}.{Reset}");
 	}
 
 	/// <summary>
@@ -490,7 +515,7 @@ class GrassLogic
 		mMeadow.Patches[newPlace].Bird = bird;
 		mMeadow.BirdPlace[bird.Id] = newPlace;
 
-		mLog.Info($"Bird {bird.Id} was shot and respawned at patch {newPlace}.");
+		mLog.Info($"{Red}Bird {bird.Id} was shot and respawned at patch {newPlace}.{Reset}");
 	}
 
 	/// <summary>
@@ -598,7 +623,7 @@ class GrassLogic
 
 					if (biggestBird == null)
 					{
-						mLog.Info($"Server tried to shoot biggest bird, however no birds were found.");
+						mLog.Info($"{Red}Server tried to shoot biggest bird, however no birds were found.{Reset}");
 					}
 					else
 					{
