@@ -11,6 +11,9 @@ using SimpleRpc.Serialization.Hyperion;
 using Services;
 
 
+/// <summary>
+/// Grass server host.
+/// </summary>
 public class Server
 {
 	/// <summary>
@@ -19,7 +22,7 @@ public class Server
 	Logger log = LogManager.GetCurrentClassLogger();
 
 	/// <summary>
-	/// Configure loggin subsystem.
+	/// Configure logging subsystem.
 	/// </summary>
 	private void ConfigureLogging()
 	{
@@ -50,7 +53,7 @@ public class Server
 	/// Program body.
 	/// </summary>
 	/// <param name="args">Command line arguments.</param>
-	private void Run(string[] args) 
+	private void Run(string[] args)
 	{
 		//configure logging
 		ConfigureLogging();
@@ -68,7 +71,7 @@ public class Server
 	/// <param name="args">Command line arguments.</param>
 	private void StartServer(string[] args)
 	{
-		///create web app builder
+		//create web app builder
 		var builder = WebApplication.CreateBuilder(args);
 
 		//configure integrated server
@@ -83,7 +86,6 @@ public class Server
 
 		//add our custom services
 		builder.Services
-			// .AddScoped<ITrafficLightService, TrafficLightService>();  //instance-per-request, AddTransient would result in the same
 			.AddSingleton<IGrassService>(new GrassService());   //singleton
 
 		//build the server
@@ -94,6 +96,5 @@ public class Server
 
 		//run the server
 		app.Run();
-		// app.RunAsync(); //use this if you need to implement background processing in the main thread
 	}
 }

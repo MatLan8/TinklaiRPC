@@ -12,7 +12,7 @@ using Services;
 
 
 /// <summary>
-/// Client example.
+/// Bird client.
 /// </summary>
 class Client
 {
@@ -49,7 +49,7 @@ class Client
 		//initialize random number generator
 		var rng = new Random();
 
-		//run everythin in a loop to recover from connection errors
+		//run everything in a loop to recover from connection errors
 		while( true )
 		{
 			try {
@@ -57,7 +57,7 @@ class Client
 				var sc = new ServiceCollection();
 				sc
 					.AddSimpleRpcClient(
-						"grassService", //must be same as on line 86
+						"grassService",
 						new HttpClientTransportOptions
 						{
 							Url = "http://127.0.0.1:5000/simplerpc",
@@ -66,21 +66,20 @@ class Client
 					)
 					.AddSimpleRpcHyperionSerializer();
 
-				sc.AddSimpleRpcProxy<IGrassService>("grassService"); //must be same as on line 77
+				sc.AddSimpleRpcProxy<IGrassService>("grassService");
 
 				var sp = sc.BuildServiceProvider();
-
 				var grass = sp.GetService<IGrassService>();
 
 				//initialize bird descriptor
 				var bird = new BirdDesc
 				{
-					//get unique client id
 					BirdId = grass.GetUniqueBirdId()
 				};
-				
+
 				Console.Title = $"I am bird {bird.BirdId}";
-				
+
+				//retry spawn until a free patch is available
 				while (true)
 				{
 					var joinAttempt = grass.SpawnBird(bird);
@@ -90,17 +89,17 @@ class Client
 						Thread.Sleep(4000 + rng.Next(1000));
 						continue;
 					}
-					
+
 					mLog.Info($"I am bird {bird.BirdId}, I have spawned at {joinAttempt.MovedTo} with mass {joinAttempt.NewMass}");
 					break;
 				}
-				
-				
+
 				//do the bird stuff
 				while (true)
 				{
 					Thread.Sleep(500 + rng.Next(1500));
 
+					//check if we were shot while idle
 					var status = grass.GetBirdStatus(bird);
 					if (status.Error)
 					{
@@ -111,11 +110,16 @@ class Client
 					{
 						mLog.Info($"I was shot and have respawned at {status.NewPlace} patch.");
 					}
+
 					mLog.Info("I am looking for new grass patch to go to.");
 
+					//get current grass field snapshot
 					var meadow = grass.GetMeadow();
+					
+					//find the next spot we want to go to
 					var nextSpot = GetNextSpot(meadow, rng);
 
+					//retry a few times if the chosen patch was taken
 					for (var i = 0; i < 5; i++)
 					{
 						var moveAttempt = grass.MoveBird(bird, nextSpot);
@@ -132,13 +136,12 @@ class Client
 								mLog.Info($"I have moved to patch {moveAttempt.MovedTo} and ate bug {moveAttempt.BugId}, my new mass: {moveAttempt.NewMass}.");
 								break;
 							}
-							
+
 							mLog.Info($"I have moved to patch {moveAttempt.MovedTo} however no bugs were present, my mass: {moveAttempt.NewMass}.");
 							break;
 						}
 					}
 				}
-
 			}
 			catch( Exception e )
 			{
@@ -151,26 +154,35 @@ class Client
 		}
 	}
 
-
+	/// <summary>
+	/// Choose next unoccupied patch with weight 1 + bug count. Empty patches still have a chance.
+	/// </summary>
+	/// <param name="meadow">Current meadow snapshot.</param>
+	/// <param name="rng">Random number generator.</param>
+	/// <returns>Chosen patch index.</returns>
 	private int GetNextSpot(MeadowSnapshot meadow, Random rng)
 	{
 		int totalWeight = 0;
 		for (int i = 0; i < meadow.BugCounts.Length; i++)
 		{
+			//skip patches occupied by another bird
 			if (meadow.BirdOccupied[i])
-				continue;   // skip patches another bird occupies
+				continue;
 			totalWeight += 1 + meadow.BugCounts[i];
 		}
-		
+
+		//roll random number
 		var roll = rng.Next(totalWeight);
 		var running = 0;
 		var targetSpot = -1;
-		
+
+		//find the targetSpot by increasing the "running" by weight until we exceed the roll
+		//this implementation prioritizes patches with more bugs
 		for (var i = 0; i < meadow.BugCounts.Length; i++)
 		{
 			if (meadow.BirdOccupied[i])
 				continue;
-			
+
 			running += 1 + meadow.BugCounts[i];
 			if (roll < running)
 			{
@@ -178,6 +190,7 @@ class Client
 				break;
 			}
 		}
+
 		mLog.Info($"I decided to move to grass patch {targetSpot} (bugs there: {meadow.BugCounts[targetSpot]}, weight {1 + meadow.BugCounts[targetSpot]} / {totalWeight}).");
 		return targetSpot;
 	}

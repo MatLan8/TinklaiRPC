@@ -12,7 +12,7 @@ using Services;
 
 
 /// <summary>
-/// Client example.
+/// Bug client.
 /// </summary>
 class Client
 {
@@ -57,7 +57,7 @@ class Client
 				var sc = new ServiceCollection();
 				sc
 					.AddSimpleRpcClient(
-						"grassService", //must be same as on line 86
+						"grassService",
 						new HttpClientTransportOptions
 						{
 							Url = "http://127.0.0.1:5000/simplerpc",
@@ -66,21 +66,21 @@ class Client
 					)
 					.AddSimpleRpcHyperionSerializer();
 
-				sc.AddSimpleRpcProxy<IGrassService>("grassService"); //must be same as on line 77
+				sc.AddSimpleRpcProxy<IGrassService>("grassService");
 
 				var sp = sc.BuildServiceProvider();
-
 				var grass = sp.GetService<IGrassService>();
 
 				//initialize bug descriptor
 				var bug = new BugDesc
 				{
-					//get unique client id
 					BugId = grass.GetUniqueBugId()
 				};
 
+				//spawn on the meadow
 				var joinAttempt = grass.SpawnBug(bug);
-
+				
+				//if failed to spawn, because the bug already exists in the grass, exit
 				if (!joinAttempt.IsSuccess)
 				{
 					mLog.Info($"I have failed to spawn | reason: {joinAttempt.Reason}.");
@@ -89,13 +89,14 @@ class Client
 
 				//log identity data
 				mLog.Info($"I am bug {bug.BugId}, I have spawned at {joinAttempt.MovedTo} with mass {joinAttempt.NewMass}");
-				
 				Console.Title = $"I am bug {bug.BugId}";
-					
+
 				//do the bug stuff
 				while (true)
 				{
 					Thread.Sleep(500 + rng.Next(1500));
+
+					//check if we were eaten while idle
 					var status = grass.GetBugStatus(bug);
 					if (status.Error)
 					{
@@ -106,11 +107,16 @@ class Client
 					{
 						mLog.Info($"I was eaten and have respawned at {status.NewPlace} patch.");
 					}
+
 					mLog.Info("I am looking for new grass patch to go to.");
 
+					//get grass field snapshot
 					var meadow = grass.GetMeadow();
+					
+					//find the next spot
 					var nextSpot = GetNextSpot(meadow, rng);
 
+					//move to next spot
 					var moveAttempt = grass.MoveBug(bug, nextSpot);
 					if (!moveAttempt.IsSuccess)
 					{
@@ -119,7 +125,6 @@ class Client
 					}
 					mLog.Info($"I have moved to patch {moveAttempt.MovedTo}, my new mass: {moveAttempt.NewMass}.");
 				}
-
 			}
 			catch( Exception e )
 			{
@@ -132,22 +137,27 @@ class Client
 		}
 	}
 
-
+	/// <summary>
+	/// Choose next patch with weight 1 + bug count. Empty patches still have a chance.
+	/// </summary>
+	/// <param name="meadow">Current meadow snapshot.</param>
+	/// <param name="rng">Random number generator.</param>
+	/// <returns>Chosen patch index.</returns>
 	private int GetNextSpot(MeadowSnapshot meadow, Random rng)
 	{
-		// weight[i] = 1 + bugs on patch i  (empty still has a chance)
 		var totalWeight = 0;
-
 		for (int i = 0; i < meadow.BugCounts.Length; i++)
 		{
 			totalWeight += 1 + meadow.BugCounts[i];
 		}
 		
+		//roll random number
 		var roll = rng.Next(totalWeight);
-		
 		var running = 0;
 		var targetSpot = 0;
-		
+
+		//find the targetSpot by increasing the "running" by weight until we exceed the roll
+		//this implementation prioritizes patches with more bugs
 		for (var i = 0; i < meadow.BugCounts.Length; i++)
 		{
 			running += 1 + meadow.BugCounts[i];
@@ -157,9 +167,8 @@ class Client
 				break;
 			}
 		}
-		
+
 		mLog.Info($"I decided to move to grass patch {targetSpot} (bugs there: {meadow.BugCounts[targetSpot]}, weight {1 + meadow.BugCounts[targetSpot]} / {totalWeight}).");
-		
 		return targetSpot;
 	}
 
